@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# tf — talk to the local TensorFold server (Qwen3.6-35B-A3B out of an expert pool).
+#   tf up                  is it serving, and which model
+#   tf ask "…" [tokens]    one answer, plain text
+#   tf stream "…" [tokens] the same, token by token as it generates
+#   tf tool "…" [tokens]   ask something that needs a tool; prints the call
+#   tf stats               the engine's own receipts: pool hit rate, per-request tok/s
+#   tf log                 follow the engine's log (Ctrl-C)
+#   tf raw '<json>'        post a body of your own, e.g. to try parameters
+set -uo pipefail
+BASE=${BASE:-http://127.0.0.1:8099/v1}
+MODEL=${MODEL:-qwen3.6-35b-a3b}
+LOG=${LOG:-$HOME/.local/state/tf-serve.log}
+TOOLS='{"tools":[{"type":"function","function":{"name":"get_weather","description":"Current weather for a city","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]}'
+
+body() {  # $1 prompt, $2 max_tokens, $3 extra JSON object or empty
+    jq -nc --arg m "$MODEL" --arg p "$1" --argjson t "$2" --argjson x "${3:-{\}}" \
+        '{model:$m, messages:[{role:"user",content:$p}], temperature:0, max_tokens:$t,
+          chat_template_kwargs:{enable_thinking:false}} + $x'
+}
+
+post() {  # $1 json body
+    curl -s -m 1800 "$BASE/chat/completions" -H 'Content-Type: application/json' -d "$1"
+}
+
+case "${1:-help}" in
+    up)     curl -s -m 10 "$BASE/models" | jq -r '.data[].id' ;;
+    ask)    post "$(body "${2:?usage: tf ask \"prompt\" [tokens]}" "${3:-200}")" | jq -r '.choices[0].message.content' ;;
+    stream) curl -N -s -m 1800 "$BASE/chat/completions" -H 'Content-Type: application/json' \
+                -d "$(body "${2:?usage: tf stream \"prompt\" [tokens]}" "${3:-200}" '{"stream":true}')" \
+              | sed -n 's/^data: //p' | grep -v '^\[DONE\]$' \
+              | jq -rj 'select(.choices[0].delta.content) | .choices[0].delta.content' ;;
+    tool)   post "$(body "${2:?usage: tf tool \"prompt\" [tokens]}" "${3:-200}" "$TOOLS")" \
+              | jq -c '.choices[0].finish_reason, .choices[0].message.tool_calls[0].function' ;;
+    raw)    post "${2:?usage: tf raw '{\"model\":…}'}" | jq -c '.' ;;
+    stats)  grep -E "expert pool:" "$LOG" | tail -2; grep -E "done req-" "$LOG" | tail -2 ;;
+    log)    tail -f "$LOG" ;;
+    *)      sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac

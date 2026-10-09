@@ -1,0 +1,28 @@
+TensorFold · Qwen3.6-35B-A3B · 16.9 GiB of routed experts served from an expert pool on an 8 GB laptop GPU
+
+$ nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
+NVIDIA GeForce RTX 5070 Laptop GPU, 8151 MiB, 595.71.05
+$ nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader
+3836926, 2764 MiB
+$ free -g | head -2
+               total        used        free      shared  buff/cache   available
+Mem:              62          49           0          14          27          12
+$ tfstats
+[tensorfold] CUDA rank 0 startup estimate 5.33 GiB within 5.36 GiB; native 262144, allocated prompt/reply window 32768, cache slots 32769; expert pool 1.00 GiB serving 16.88 GiB of routed experts from the checkpoint's files
+[tensorfold] --expert-pool 1.0: 606 slots of 1.69 MiB (566 serving 16.88 GiB of routed experts from the checkpoint's files, 40 the shared experts); rounds decode eagerly, without CUDA graphs
+[tensorfold] serving qwen3.6-35b-a3b at http://127.0.0.1:8099/v1 on CUDA (sampling: greedy; drafts: off; prompts: bf16 activations; context: 32768; loaded in 4.1s)
+
+$ tfask "Write a Python one-liner that returns the nth Fibonacci number."
+```python
+fib = lambda n: n if n < 2 else fib(n-1) + fib(n-2)
+```
+  29 tokens · 10.8 s · 3.4 tok/s · first token 2.56 s
+
+$ tftool "What is the weather in Reykjavik right now?"
+  tool call  get_weather({"city":"Reykjavik"})
+
+  29 tokens · 17.2 s · 3.8 tok/s · first token 9.92 s
+
+$ tfpool
+[tensorfold] expert pool: 219652 experts read, 90914 hits (29.3%), residency 566/606
+[tensorfold] expert pool: 219907 experts read, 90955 hits (29.3%), residency 566/606

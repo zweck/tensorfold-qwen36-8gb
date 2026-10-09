@@ -1,0 +1,8 @@
+This repository documents work on TensorFold (https://github.com/ashhart/TensorFold),
+Apache-2.0, Copyright 2026 TensorFold contributors.
+
+- The text under docs/ is a section proposed for TensorFold's docs/recipes/qwen3.6-moe.md (Apache-2.0), and is
+  reproduced here unmodified apart from its heading.
+- Qwen3.6-35B-A3B is Qwen's (https://huggingface.co/Qwen/Qwen3.6-35B-A3B, Apache-2.0). The 4-bit MLX + MTP
+  checkpoint served here is TensorFold's quantization of it.
+- The harnesses under scripts/ were written for this work and are Apache-2.0 like the project they exercise.
